@@ -1,0 +1,108 @@
+<div id="lb-root" class="lb-root lb-force-light"
+     data-wwwroot="{{wwwroot}}"
+     data-endpoint="{{endpoint}}"
+     data-sesskey="{{sesskey}}"
+     data-icons='{"default":"{{defaulticon}}"}'
+     data-viewactivity="{{viewactivity}}"
+     data-sections="{{sections}}"
+     data-nosections="{{nosections}}"
+     data-svgdown="{{svgdown}}"
+     data-svgup="{{svgup}}">
+
+  <div class="lb-overlay" role="dialog" aria-modal="true">
+    <div class="lb-panel" aria-labelledby="lb-title">
+
+      <div id="lb-header">
+        <div class="lb-title" id="lb-title">
+          <span class="sr-only">{{heading}}</span>
+        </div>
+        <button type="button" class="lb-close" id="lb-close" aria-label="{{close}}">×</button>
+      </div>
+
+      <div id="lb-course-tabs-top" hidden></div>
+
+      <div class="lb-main" id="lb-main">
+        <div class="lb-left" id="lb-left">
+          <div class="lb-search">
+            <div class="lb-input-wrap">
+              <span class="lb-input-ico" aria-hidden="true"><img src="{{svgsearch}}" alt="" class="ico-18"></span>
+              <input type="search" id="lb-input" class="lb-input" placeholder="Buscar actividades…" autocomplete="off">
+              <button type="button" class="lb-clear" id="lb-clear" aria-label="{{clear}}">×</button>
+            </div>
+          </div>
+
+          <div class="lb-left-body">
+            <div class="lb-courseview" id="lb-courseview"></div>
+            <div class="lb-results" id="lb-results" hidden></div>
+
+            <div class="lb-empty" id="lb-empty" hidden>
+              <div class="lb-empty-card">
+                <div class="lb-empty-ico">
+                  <img src="{{svgsearch}}" alt="" width="20" height="20">
+                </div>
+                <h3 class="lb-empty-title">¿Qué te gustaría encontrar?</h3>
+                <p class="lb-empty-text">
+                  Escribe el nombre de una actividad o utiliza los filtros para buscar por <strong>curso</strong> o por <strong>tipo de actividad</strong>.
+                </p>
+                <div class="lb-empty-actions">
+                  <button type="button" class="lb-chip js-focus-search">Buscar por nombre</button>
+                  <button type="button" class="lb-chip js-open-courses">Filtrar por área de estudio</button>
+                  <button type="button" class="lb-chip js-open-types">Filtrar por tipo de actividad</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lb-loading" id="lb-loading" hidden>{{loading}}</div>
+          </div>
+        </div>
+
+        <aside class="lb-right" id="lb-right" aria-label="Filtros">
+          <div class="lb-filters">
+            <div class="ms">
+              <button class="ms-trigger" id="ms-trigger" aria-haspopup="listbox" aria-expanded="false">
+                <span class="ms-label">Filtrar por áreas de estudio</span>
+                <span class="ms-caret" aria-hidden="true"><img src="{{svgdown}}" alt="" class="ico-18 ms-caret-img"></span>
+              </button>
+              <div class="ms-panel" id="ms-panel" hidden>
+                <div class="ms-search">
+                  <span class="ms-ico" aria-hidden="true"><img src="{{svgsearch}}" alt="" class="ico-18"></span>
+                  <input type="search" id="ms-input" class="ms-input" placeholder="Buscar área de estudio..." autocomplete="off">
+                  <button type="button" id="ms-input-clear" class="ms-input-clear" aria-label="{{clear}}">×</button>
+                </div>
+                <ul class="ms-list" id="ms-list" role="listbox" aria-multiselectable="true"></ul>
+                <div class="ms-foot">
+                  <button class="ms-clear" id="ms-clear" type="button">{{clear}}</button>
+                  <div class="ms-count" id="ms-count" aria-live="polite">Todos</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ms" id="mt">
+              <button class="ms-trigger" id="mt-trigger" aria-haspopup="listbox" aria-expanded="false">
+                <span class="ms-label">Filtrar por tipo de actividad</span>
+                <span class="ms-caret" aria-hidden="true"><img src="{{svgdown}}" alt="" class="ico-18 ms-caret-img"></span>
+              </button>
+              <div class="ms-panel" id="mt-panel" hidden>
+                <div class="ms-search">
+                  <span class="ms-ico" aria-hidden="true"><img src="{{svgsearch}}" alt="" class="ico-18"></span>
+                  <input type="search" id="mt-input" class="ms-input" placeholder="Buscar tipo de actividad..." autocomplete="off">
+                  <button type="button" id="mt-input-clear" class="ms-input-clear" aria-label="{{clear}}">×</button>
+                </div>
+                <ul class="ms-list" id="mt-list" role="listbox" aria-multiselectable="true"></ul>
+                <div class="ms-foot">
+                  <button class="ms-clear" id="mt-clear" type="button">{{clear}}</button>
+                  <div class="ms-count" id="mt-count" aria-live="polite">Todos</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="lb-foot">
+        <div class="lb-pager" id="lb-pager" hidden></div>
+      </div>
+
+    </div>
+  </div>
+</div>
