@@ -248,92 +248,149 @@
 
   /* =================== archivos de folder =================== */
 
-  // Asegura inline (no descarga) y abre en pestaña
+  // Forzar que la URL abra inline (sin descarga forzada)
   function inlineURL(url) {
     try {
       const u = new URL(url, location.origin);
-      if (!u.searchParams.has('forcedownload')) u.searchParams.set('forcedownload', '0');
+      if (!u.searchParams.has('forcedownload')) {
+        u.searchParams.set('forcedownload', '0');
+      }
       return u.toString();
     } catch (e) {
       return url + (url.includes('?') ? '&' : '?') + 'forcedownload=0';
     }
   }
 
-  function fileRowEl(file){
+  function fileRowEl(file) {
     const row = document.createElement('div');
     row.className = 'lb-file';
+
     const href = inlineURL(file.url || '#');
+
     row.innerHTML = `
       <span class="lb-elbow" aria-hidden="true"></span>
       <div class="lb-file-icon">
         ${file.icon ? `<img class="lb-file-img" src="${esc(file.icon)}" alt="">` : ''}
       </div>
       <div class="lb-file-main">
-        <a class="lb-file-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer"
-           title="${esc(file.name || 'Archivo')}">${esc(file.name || 'Archivo')}</a>
+        <a class="lb-file-link"
+           href="${esc(href)}"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="${esc(file.name || 'Archivo')}">
+          ${esc(file.name || 'Archivo')}
+        </a>
       </div>
     `;
     return row;
   }
-  function renderFiles(container, files){
-    container.innerHTML='';
-    if (!files || !files.length){
+
+  function renderFiles(container, files) {
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!files || !files.length) {
       container.innerHTML = `<div class="lb-subloading">(sin archivos)</div>`;
       return;
     }
+
     const frag = document.createDocumentFragment();
-    files.forEach(f=> frag.appendChild(fileRowEl(f)));
+    files.forEach(f => frag.appendChild(fileRowEl(f)));
     container.appendChild(frag);
   }
-  function attachFolderUI(row, a){
+
+  /**
+   * Inserta el botón "Ver archivos" y el bloque donde se pintan
+   * los archivos de la carpeta (respuesta de folderfiles).
+   * El bloque se coloca DENTRO de la misma fila, ocupando toda la anchura.
+   */
+  function attachFolderUI(row, a) {
     const actions = row.querySelector('.lb-act-actions, .lb-res-actions');
     if (!actions) return;
 
+    // Evitar crear dos veces el bloque en la misma fila
+    if (row.dataset.hasFolderUi === '1') return;
+    row.dataset.hasFolderUi = '1';
+
     const btn = document.createElement('button');
-    btn.type='button';
-    btn.className='lb-btn lb-btn-mini lb-files-toggle';
+    btn.type = 'button';
+    btn.className = 'lb-btn lb-btn-mini lb-files-toggle';
     btn.textContent = 'Ver archivos';
+
     btn.dataset.cmid = String(a.cmid || a.id || '');
+    if (a.url) {
+      btn.dataset.url = a.url; // fallback: abrir carpeta normal
+    }
 
     actions.appendChild(btn);
 
+    // Contenedor donde aparecerán los archivos (dentro de la fila)
     const filesBlock = document.createElement('div');
-    filesBlock.className = 'lb-files';
-    filesBlock.setAttribute('hidden','');
-    filesBlock.innerHTML = `<div class="lb-files-wrap"></div>`;
-    row.insertAdjacentElement('afterend', filesBlock);
-    const wrap = filesBlock.querySelector('.lb-files-wrap');
+    filesBlock.className = 'lb-files-inline';
+    filesBlock.style.gridColumn = '1 / -1';
+    filesBlock.style.display   = 'none';
 
-    // Si ya vienen pre-cargados en activities/search
+    const wrap = document.createElement('div');
+    wrap.className = 'lb-files-wrap';
+    filesBlock.appendChild(wrap);
+
+    row.appendChild(filesBlock);
+
+    // Si PHP ya mandó hijos (cuando vienes de activities con query)
     const preload = Array.isArray(a.children) && a.children.length ? a.children : null;
-    if (preload){
+    if (preload) {
       renderFiles(wrap, preload);
       btn.dataset.loaded = '1';
     }
 
-    btn.addEventListener('click', ()=>{
-      const isOpen = !filesBlock.hasAttribute('hidden');
-      if (isOpen){
-        filesBlock.setAttribute('hidden','');
+    btn.addEventListener('click', () => {
+      const isOpen = filesBlock.style.display !== 'none';
+
+      if (isOpen) {
+        filesBlock.style.display = 'none';
         btn.classList.remove('is-open');
         return;
       }
-      filesBlock.removeAttribute('hidden');
+
+      filesBlock.style.display = 'block';
       btn.classList.add('is-open');
 
-      if (btn.dataset.loaded === '1') return;
+      // Ya se cargaron antes (o venían precargados)
+      if (btn.dataset.loaded === '1') {
+        return;
+      }
+
+      const cmid = btn.dataset.cmid;
+      if (!cmid) {
+        renderFiles(wrap, []);
+        btn.dataset.loaded = '1';
+        return;
+      }
 
       wrap.innerHTML = `<div class="lb-subloading">Cargando…</div>`;
-      const cmid = btn.dataset.cmid;
-      if (!cmid){ renderFiles(wrap, []); btn.dataset.loaded='1'; return; }
 
       listFolderFiles(cmid)
-        .then(data=>{
-          const arr = (data && data.children) || [];
+        .then(data => {
+          console.log('[Buscador] folderfiles cmid=', cmid, 'respuesta=', data);
+          const arr = data && Array.isArray(data.children) ? data.children : [];
+
+          // Si no hay archivos, usamos fallback: abrir la carpeta normal
+          if (!arr.length && btn.dataset.url) {
+            filesBlock.style.display = 'none';
+            btn.classList.remove('is-open');
+            window.open(btn.dataset.url, '_blank', 'noopener');
+            return;
+          }
+
           renderFiles(wrap, arr);
           btn.dataset.loaded = '1';
         })
-        .catch(()=>{ renderFiles(wrap, []); btn.dataset.loaded='1'; });
+        .catch(err => {
+          console.error('[Buscador] error folderfiles cmid=', cmid, err);
+          renderFiles(wrap, []);
+          btn.dataset.loaded = '1';
+        });
     });
   }
 
@@ -423,94 +480,88 @@
     wrap.innerHTML=''; wrap.appendChild(frag);
   }
 
-function renderResults(list){
-  const results = byId('lb-results');
-  const view = byId('lb-courseview');
-  const empty = byId('lb-empty');
+  function renderResults(list){
+    const results = byId('lb-results');
+    const view = byId('lb-courseview');
+    const empty = byId('lb-empty');
 
-  view.innerHTML=''; empty.setAttribute('hidden',''); results.innerHTML='';
+    view.innerHTML=''; empty.setAttribute('hidden',''); results.innerHTML='';
 
-  if (!list || !list.length){
-    results.innerHTML = `<div class="lb-empty">Sin resultados</div>`;
-    results.removeAttribute('hidden');
-    return;
-  }
+    if (!list || !list.length){
+      results.innerHTML = `<div class="lb-empty">Sin resultados</div>`;
+      results.removeAttribute('hidden');
+      return;
+    }
 
-  const byCourse = new Map();
-  list.forEach(x=>{
-    const k = x.courseid+'|'+x.coursename;
-    if(!byCourse.has(k)) byCourse.set(k, []);
-    byCourse.get(k).push(x);
-  });
-
-  byCourse.forEach((items, key)=>{
-    const [, coursename] = key.split('|');
-    const card = document.createElement('section');
-    card.className='lb-res';
-    card.innerHTML = `<h3 class="lb-res-head">${esc(coursename)}</h3>`;
-
-    items.forEach(a=>{
-      const row = document.createElement('div');
-      row.className='lb-res-item';
-
-      // Ícono (actividad o archivo)
-      const src = pickIcon(a);
-
-      // Si viene de "archivo dentro de carpeta", separamos "carpeta / archivo"
-      let parentLabel = '';
-      let fileLabel   = a.name || '';
-      if (a.isfile && typeof a.name === 'string'){
-        const i = a.name.indexOf(' / ');
-        if (i !== -1){
-          parentLabel = a.name.slice(0, i);
-          fileLabel   = a.name.slice(i + 3);
-        }
-      }
-
-      // Etiqueta del botón
-      const btnLabel = a.isfile ? 'Ver archivo' : 'Abrir';
-
-      // HTML principal (cuando es archivo mostramos parent + filename con estilos distintos)
-      row.innerHTML = `
-        <div class="lb-res-icon">
-          ${src ? `<img src="${esc(src)}" alt="" role="presentation" class="lb-act-img">` : ''}
-        </div>
-        <div class="lb-res-main">
-          ${
-            a.isfile
-            ? `<div class="lb-res-name lb-res-name--file" title="${esc(a.name)}">
-                 <span class="lb-res-parent">${esc(parentLabel)}</span>
-                 <span class="lb-res-sep">/</span>
-                 <span class="lb-res-file">${esc(fileLabel)}</span>
-               </div>`
-            : `<div class="lb-res-name" title="${esc(a.name)}">${esc(a.name)}</div>`
-          }
-        </div>
-        <div class="lb-res-actions">
-          <a class="lb-btn lb-btn-mini lb-act-link"
-             href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${btnLabel}
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                 class="bi bi-arrow-up-right-circle" viewBox="0 0 16 16">
-              <path fill-rule="evenodd"
-                    d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.854 10.803a.5.5 0 1 1-.708-.707L9.243 6H6.475a.5.5 0 1 1 0-1h3.975a.5.5 0 0 1 .5.5v3.975a.5.5 0 1 1-1 0V6.707z"/>
-            </svg>
-          </a>
-        </div>`;
-
-      // Para carpetas (no para archivos individuales) mantenemos el “Ver archivos”
-      if (String(a.modname||'') === 'folder' && !a.isfile){
-        attachFolderUI(row, a);
-      }
-
-      card.appendChild(row);
+    const byCourse = new Map();
+    list.forEach(x=>{
+      const k = x.courseid+'|'+x.coursename;
+      if(!byCourse.has(k)) byCourse.set(k, []);
+      byCourse.get(k).push(x);
     });
 
-    results.appendChild(card);
-  });
+    byCourse.forEach((items, key)=>{
+      const [, coursename] = key.split('|');
+      const card = document.createElement('section');
+      card.className='lb-res';
+      card.innerHTML = `<h3 class="lb-res-head">${esc(coursename)}</h3>`;
 
-  results.removeAttribute('hidden');
-}
+      items.forEach(a=>{
+        const row = document.createElement('div');
+        row.className='lb-res-item';
 
+        const src = pickIcon(a);
+
+        let parentLabel = '';
+        let fileLabel   = a.name || '';
+        if (a.isfile && typeof a.name === 'string'){
+          const i = a.name.indexOf(' / ');
+          if (i !== -1){
+            parentLabel = a.name.slice(0, i);
+            fileLabel   = a.name.slice(i + 3);
+          }
+        }
+
+        const btnLabel = a.isfile ? 'Ver archivo' : 'Abrir';
+
+        row.innerHTML = `
+          <div class="lb-res-icon">
+            ${src ? `<img src="${esc(src)}" alt="" role="presentation" class="lb-act-img">` : ''}
+          </div>
+          <div class="lb-res-main">
+            ${
+              a.isfile
+              ? `<div class="lb-res-name lb-res-name--file" title="${esc(a.name)}">
+                   <span class="lb-res-parent">${esc(parentLabel)}</span>
+                   <span class="lb-res-sep">/</span>
+                   <span class="lb-res-file">${esc(fileLabel)}</span>
+                 </div>`
+              : `<div class="lb-res-name" title="${esc(a.name)}">${esc(a.name)}</div>`
+            }
+          </div>
+          <div class="lb-res-actions">
+            <a class="lb-btn lb-btn-mini lb-act-link"
+               href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${btnLabel}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                   class="bi bi-arrow-up-right-circle" viewBox="0 0 16 16">
+                <path fill-rule="evenodd"
+                      d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.854 10.803a.5.5 0 1 1-.708-.707L9.243 6H6.475a.5.5 0 1 1 0-1h3.975a.5.5 0 0 1 .5.5v3.975a.5.5 0 1 1-1 0V6.707z"/>
+              </svg>
+            </a>
+          </div>`;
+
+        if (String(a.modname||'') === 'folder' && !a.isfile){
+          attachFolderUI(row, a);
+        }
+
+        card.appendChild(row);
+      });
+
+      results.appendChild(card);
+    });
+
+    results.removeAttribute('hidden');
+  }
 
   /* =================== Ruteo =================== */
   function routeAfterFiltersChange(){
